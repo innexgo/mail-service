@@ -17,24 +17,22 @@ impl TryFrom<&rusqlite::Row<'_>> for Event {
     Ok(Event {
       event_id: row.get(0)?,
       creation_time: row.get(1)?,
-      creator_user_id: row.get(2)?,
-      event_hash: row.get(3)?,
+      source: row.get(2)?,
+      msg: row.get(3)?,
       // means that there's a mismatch between the values of the enum and the value stored in the column
-      event_kind: row
+      severity_kind: row
         .get::<_, u8>(4)?
         .try_into()
         .map_err(|x| rusqlite::Error::IntegralValueOutOfRange(4, x as i64))?,
-      duration: row.get(5)?,
     })
   }
 }
 
 pub fn add(
   con: &mut Savepoint,
-  creator_user_id: i64,
-  event_hash: String,
-  event_kind: log_service_api::request::EventKind,
-  duration: i64,
+  source: String,
+  msg: String,
+  severity_kind: log_service_api::request::LogSeverityKind,
 ) -> Result<Event, rusqlite::Error> {
   let sp = con.savepoint()?;
   let event_id = next_id(&sp)?;
@@ -46,10 +44,9 @@ pub fn add(
     params![
       event_id,
       creation_time,
-      creator_user_id,
-      event_hash,
-      event_kind.clone() as u8,
-      duration,
+      &source,
+      &msg,
+      severity_kind.clone() as u8,
     ],
   )?;
 
@@ -60,10 +57,9 @@ pub fn add(
   Ok(Event {
     event_id,
     creation_time,
-    creator_user_id,
-    event_hash,
-    event_kind,
-    duration,
+    source,
+    msg,
+    severity_kind,
   })
 }
 
@@ -77,16 +73,6 @@ pub fn get_by_event_id(
     .optional()
 }
 
-pub fn get_by_event_hash(
-  con: &Connection,
-  event_hash: &str,
-) -> Result<Option<Event>, rusqlite::Error> {
-  let sql = "SELECT * FROM event WHERE event_hash=? ORDER BY event_id DESC LIMIT 1";
-  con
-    .query_row(sql, params![event_hash], |row| row.try_into())
-    .optional()
-}
-
 pub fn query(
   con: &Connection,
   props: log_service_api::request::EventViewProps
@@ -94,23 +80,16 @@ pub fn query(
   // TODO prevent getting meaningless duration
 
   let sql = [
-    "SELECT a.* FROM event a",
-    if props.only_recent {
-        " INNER JOIN (SELECT max(event_id) id FROM event GROUP BY event_hash) maxids ON maxids.id = a.event_id"
-    } else {
-        ""
-    },
+    "SELECT e.* FROM event e",
     " WHERE 1 = 1",
-    " AND (:event_id      == NULL OR a.event_id = :event_id)",
-    " AND (:creation_time   == NULL OR a.creation_time = :creation_time)",
-    " AND (:creation_time   == NULL OR a.creation_time > :min_creation_time)",
-    " AND (:creation_time   == NULL OR a.creation_time > :max_creation_time)",
-    " AND (:creator_user_id == NULL OR a.creator_user_id = :creator_user_id)",
-    " AND (:duration        == NULL OR a.duration = :duration)",
-    " AND (:duration        == NULL OR a.duration > :min_duration)",
-    " AND (:duration        == NULL OR a.duration > :max_duration)",
-    " AND (:event_kind    == NULL OR a.event_kind = :event_kind)",
-    " ORDER BY u.event_id",
+    " AND (:event_id        == NULL OR e.event_id = :event_id)",
+    " AND (:creation_time   == NULL OR e.creation_time = :creation_time)",
+    " AND (:creation_time   == NULL OR e.creation_time >= :min_creation_time)",
+    " AND (:creation_time   == NULL OR e.creation_time <= :max_creation_time)",
+    " AND (:source          == NULL OR e.source = :source)",
+    " AND (:msg             == NULL OR e.msg = :msg)",
+    " AND (:severity_kind   == NULL OR e.severity_kind = :severity_kind)",
+    " ORDER BY e.event_id",
     " LIMIT :offset, :count",
   ]
   .join("");
@@ -120,14 +99,12 @@ pub fn query(
   let results = stmnt
     .query(named_params! {
         "event_id": props.event_id,
-        "creator_user_id": props.creator_user_id,
         "creation_time": props.creation_time,
         "min_creation_time": props.min_creation_time,
         "max_creation_time": props.max_creation_time,
-        "duration": props.duration,
-        "min_duration": props.min_duration,
-        "max_duration": props.max_duration,
-        "event_kind": props.event_kind.map(|x| x as u8),
+        "source": props.source,
+        "msg": props.msg,
+        "severity_kind": props.severity_kind.map(|x| x as u8),
         "offset": props.offset,
         "count": props.offset,
     })?

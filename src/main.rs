@@ -2,21 +2,18 @@
 use clap::Clap;
 use rusqlite::Connection;
 use std::sync::Arc;
-//use std::sync::Mutex;
 
 use tokio::sync::Mutex;
 
 mod utils;
 
 // db web stuff
-mod log_api;
-mod log_db_types;
-mod log_handlers;
+mod mail_db_types;
+mod mail_service;
+mod mail_api;
+mod mail_handlers;
 
-// database interface
-mod event_service;
-
-static SERVICE_NAME: &str = "log-service";
+static SERVICE_NAME: &str = "mail-service";
 
 #[derive(Clap, Clone)]
 struct Opts {
@@ -37,7 +34,7 @@ async fn main() {
 
   let db: Db = Arc::new(Mutex::new(Connection::open(database_url).unwrap()));
 
-  let api = log_api::api(db);
+  let api = mail_api::api(db);
 
   warp::serve(api).run(([127, 0, 0, 1], port)).await;
 }

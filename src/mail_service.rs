@@ -4,12 +4,6 @@ use mail_service_api::request;
 use rusqlite::{named_params, params, Connection, OptionalExtension, Savepoint};
 use std::convert::{TryFrom, TryInto};
 
-// returns the max mail id and adds 1 to it
-fn next_id(con: &Connection) -> Result<i64, rusqlite::Error> {
-  let sql = "SELECT max(mail_id) FROM mail";
-  con.query_row(sql, [], |row| row.get(0))
-}
-
 impl TryFrom<&rusqlite::Row<'_>> for Mail {
   type Error = rusqlite::Error;
 
@@ -27,9 +21,17 @@ impl TryFrom<&rusqlite::Row<'_>> for Mail {
   }
 }
 
+// returns the max mail id and adds 1 to it
+fn next_id(con: &Connection) -> Result<i64, rusqlite::Error> {
+  let sql = "SELECT IFNULL(MAX(mail_id), -1) FROM mail";
+  con.query_row(sql, [], |row| row.get(0)).map(|v: i64| v + 1)
+}
+
 pub fn add(con: &mut Savepoint, props: request::MailNewProps) -> Result<Mail, rusqlite::Error> {
   let sp = con.savepoint()?;
+
   let mail_id = next_id(&sp)?;
+
   let creation_time = current_time_millis();
 
   let sql = "INSERT INTO mail values (?, ?, ?, ?, ?, ?, ?)";

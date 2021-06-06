@@ -718,7 +718,7 @@ dependencies = [
 [[package]]
 name = "mail-service-api"
 version = "0.0.1"
-source = "git+https://github.com/innexgo/mail-service-api#cfab09f214484523783182bb938e15c8070e8349"
+source = "git+https://github.com/innexgo/mail-service-api#da4927ee6b7199ea0887e11bd7ffcbffebeea6af"
 dependencies = [
  "serde",
  "strum",

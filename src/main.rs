@@ -1,4 +1,5 @@
 #![feature(async_closure)]
+#![feature(never_type)]
 use clap::Clap;
 // use rusoto_core::Region;
 // use rusoto_ses::{Body, Content, Destination, Message, SendEmailRequest, SesClient};

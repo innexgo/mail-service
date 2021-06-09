@@ -28,23 +28,15 @@ fn with<T: Clone + Send>(t: T) -> impl Filter<Extract = (T,), Error = Infallible
   warp::any().map(move || t.clone())
 }
 
-fn mail_new(
-  db: Db,
-) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+fn mail_new(db: Db) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
   warp::path!("mail" / "new")
     .and(with(db))
     .and(warp::body::json())
-    .and_then(async move |db, props| {
-      mail_handlers::mail_new(db, props)
-        .await
-        .map_err(mail_error)
-    })
-    .map(|x| warp::reply::json(&x))
+    .and_then(async move |db, props| mail_handlers::mail_new(db, props).await.map_err(mail_error))
+    .map(|x| warp::reply::json(&Some(x).ok_or(())))
 }
 
-fn mail_view(
-  db: Db,
-) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+fn mail_view(db: Db) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
   warp::path!("mail" / "view")
     .and(with(db))
     .and(warp::body::json())
@@ -53,7 +45,7 @@ fn mail_view(
         .await
         .map_err(mail_error)
     })
-    .map(|x| warp::reply::json(&x))
+    .map(|x| warp::reply::json(&Some(x).ok_or(())))
 }
 
 // This function receives a `Rejection` and tries to return a custom
@@ -64,19 +56,19 @@ async fn handle_rejection(err: warp::Rejection) -> Result<impl warp::Reply, Infa
 
   if err.is_not_found() {
     code = StatusCode::NOT_FOUND;
-    message = "NOT_FOUND";
+    message = MailError::NotFound;
   } else if err
     .find::<warp::filters::body::BodyDeserializeError>()
     .is_some()
   {
-    message = "BAD_REQUEST";
     code = StatusCode::BAD_REQUEST;
+    message = MailError::BadRequest;
   } else if err.find::<warp::reject::MethodNotAllowed>().is_some() {
     code = StatusCode::METHOD_NOT_ALLOWED;
-    message = "METHOD_NOT_ALLOWED";
+    message = MailError::MethodNotAllowed;
   } else if let Some(MailErrorRejection(mail_error)) = err.find() {
     code = StatusCode::BAD_REQUEST;
-    message = mail_error.as_ref();
+    message = mail_error.clone();
   } else {
     // We should have expected this... Just log and say its a 500
     utils::log(utils::Event {
@@ -85,10 +77,13 @@ async fn handle_rejection(err: warp::Rejection) -> Result<impl warp::Reply, Infa
       severity: utils::SeverityKind::Error,
     });
     code = StatusCode::INTERNAL_SERVER_ERROR;
-    message = "UNKNOWN";
+    message = MailError::Unknown;
   }
 
-  Ok(warp::reply::with_status(format!("\"{}\"", message), code))
+  Ok(warp::reply::with_status(
+    warp::reply::json(&Err::<(), MailError>(message)),
+    code,
+  ))
 }
 
 // This type represents errors that we can generate

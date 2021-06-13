@@ -72,7 +72,7 @@ async fn handle_rejection(err: warp::Rejection) -> Result<impl warp::Reply, Infa
   } else {
     // We should have expected this... Just log and say its a 500
     utils::log(utils::Event {
-      msg: "unknown error kind".to_owned(),
+      msg: "intercepted unknown error kind".to_owned(),
       source: None,
       severity: utils::SeverityKind::Error,
     });

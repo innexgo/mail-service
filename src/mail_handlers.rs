@@ -16,7 +16,7 @@ fn report_unk_err<E: std::error::Error>(e: E) -> response::MailError {
 }
 
 pub fn fill_mail(
-  _con: &rusqlite::Connection,
+  _con: &postgres::Client,
   mail: Mail,
 ) -> Result<response::Mail, response::MailError> {
   Ok(response::Mail {
@@ -35,16 +35,14 @@ pub async fn mail_new(
   props: request::MailNewProps,
 ) -> Result<response::Mail, response::MailError> {
   let con = &mut *db.lock().await;
-  let mut sp = con.savepoint().map_err(report_unk_err)?;
 
   println!("Topic: {}", &props.topic);
   println!("To: {}", &props.destination);
   println!("Subject: {}", &props.title);
   println!("Body:\n {}", &props.content);
 
-  let mail = mail_service::add(&mut sp, props).map_err(report_unk_err)?;
+  let mail = mail_service::add(con, props).map_err(report_unk_err)?;
 
-  sp.commit().map_err(report_unk_err)?;
   fill_mail(con, mail)
 }
 

@@ -3,7 +3,7 @@
 use clap::Clap;
 // use rusoto_core::Region;
 // use rusoto_ses::{Body, Content, Destination, Message, SendEmailRequest, SesClient};
-use rusqlite::Connection;
+use postgres::{Client, NoTls};
 use std::sync::Arc;
 
 use tokio::sync::Mutex;
@@ -26,13 +26,13 @@ struct Opts {
   port: u16,
 }
 
-pub type Db = Arc<Mutex<Connection>>;
+pub type Db = Arc<Mutex<Client>>;
 
 #[tokio::main]
 async fn main() {
   let Opts { database_url, port } = Opts::parse();
 
-  let db: Db = Arc::new(Mutex::new(Connection::open(database_url).unwrap()));
+  let db: Db = Arc::new(Mutex::new(Client::connect(&database_url, NoTls).unwrap()));
 
   let api = mail_api::api(db);
 

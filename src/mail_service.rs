@@ -1,8 +1,8 @@
 use super::mail_db_types::*;
 use super::utils::current_time_millis;
 use mail_service_api::request;
-use postgres::row::Row;
-use postgres::GenericClient;
+use tokio_postgres::row::Row;
+use tokio_postgres::GenericClient;
 
 impl From<Row> for Mail {
   // select * from mail order only, otherwise it will fail
@@ -19,10 +19,10 @@ impl From<Row> for Mail {
   }
 }
 
-pub fn add(
+pub async fn add(
   con: &mut impl GenericClient,
   props: request::MailNewProps,
-) -> Result<Mail, postgres::Error> {
+) -> Result<Mail, tokio_postgres::Error> {
   let creation_time = current_time_millis();
 
   let mail_id = con
@@ -35,7 +35,7 @@ pub fn add(
          title,
          content
        )
-       VALUES($1, $2, $3, $4, $5, $6, $7)
+       VALUES($1, $2, $3, $4, $5, $6)
        RETURNING mail_id
       ",
       &[
@@ -46,7 +46,7 @@ pub fn add(
         &props.title,
         &props.content,
       ],
-    )?
+    ).await?
     .get(0);
 
   // return mail
@@ -62,21 +62,21 @@ pub fn add(
 }
 
 #[allow(unused)]
-pub fn get_by_mail_id(
+pub async fn get_by_mail_id(
   con: &mut impl GenericClient,
   mail_id: i64,
-) -> Result<Option<Mail>, postgres::Error> {
+) -> Result<Option<Mail>, tokio_postgres::Error> {
   let results = con
-    .query_opt("SELECT * FROM mail WHERE mail_id=$1", &[&mail_id])?
+    .query_opt("SELECT * FROM mail WHERE mail_id=$1", &[&mail_id]).await?
     .map(|x| x.into());
 
   Ok(results)
 }
 
-pub fn query(
+pub async fn query(
   con: &mut impl GenericClient,
   props: mail_service_api::request::MailViewProps,
-) -> Result<Vec<Mail>, postgres::Error> {
+) -> Result<Vec<Mail>, tokio_postgres::Error> {
   let results = con
     .query(
       "SELECT m.* FROM mail m WHERE 1 = 1
@@ -101,7 +101,7 @@ pub fn query(
         &props.offset,
         &props.offset,
       ],
-    )?
+    ).await?
     .into_iter()
     .map(|row| row.into())
     .collect();

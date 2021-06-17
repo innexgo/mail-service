@@ -32,7 +32,9 @@ fn mail_new(db: Db) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rej
   warp::path!("mail" / "new")
     .and(with(db))
     .and(warp::body::json())
-    .and_then(async move |db, props| mail_handlers::mail_new(db, props).await.map_err(mail_error))
+    .and_then(move |db, props| async {
+      mail_handlers::mail_new(db, props).await.map_err(mail_error)
+    })
     .map(|x| warp::reply::json(&Some(x).ok_or(())))
 }
 
@@ -40,7 +42,7 @@ fn mail_view(db: Db) -> impl Filter<Extract = impl warp::Reply, Error = warp::Re
   warp::path!("mail" / "view")
     .and(with(db))
     .and(warp::body::json())
-    .and_then(async move |db, props| {
+    .and_then(move |db, props| async {
       mail_handlers::mail_view(db, props)
         .await
         .map_err(mail_error)

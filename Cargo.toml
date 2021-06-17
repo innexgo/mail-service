@@ -12,6 +12,4 @@ tokio = { version = "1", features=["full"] }
 serde = { version = "1.0", features = ["derive"] }
 mail-service-api = { version = "*", git = "https://github.com/innexgo/mail-service-api" }
 serde_json = "1.0.64"
-rusoto_ses = "0.46.0"
-rusoto_core = "0.46.0"
-postgres = "0.19.1"
+tokio-postgres = "0.7.2"

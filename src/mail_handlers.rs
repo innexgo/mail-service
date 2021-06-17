@@ -16,7 +16,7 @@ fn report_unk_err<E: std::error::Error>(e: E) -> response::MailError {
 }
 
 pub fn fill_mail(
-  _con: &postgres::Client,
+  _con: &tokio_postgres::Client,
   mail: Mail,
 ) -> Result<response::Mail, response::MailError> {
   Ok(response::Mail {
@@ -41,7 +41,9 @@ pub async fn mail_new(
   println!("Subject: {}", &props.title);
   println!("Body:\n {}", &props.content);
 
-  let mail = mail_service::add(con, props).map_err(report_unk_err)?;
+  let mail = mail_service::add(con, props)
+    .await
+    .map_err(report_unk_err)?;
 
   fill_mail(con, mail)
 }
@@ -52,7 +54,9 @@ pub async fn mail_view(
 ) -> Result<Vec<response::Mail>, response::MailError> {
   let con = &mut *db.lock().await;
   // get mails
-  let mails = mail_service::query(con, props).map_err(report_unk_err)?;
+  let mails = mail_service::query(con, props)
+    .await
+    .map_err(report_unk_err)?;
   // return
   mails.into_iter().map(|a| fill_mail(con, a)).collect()
 }

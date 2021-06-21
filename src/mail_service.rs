@@ -82,24 +82,23 @@ pub async fn query(
       "SELECT m.* FROM mail m WHERE 1 = 1
        AND ($1 == NULL OR m.mail_id = $1)
        AND ($2 == NULL OR m.request_id = $2)
-       AND ($3 == NULL OR m.creation_time = $3)
-       AND ($4 == NULL OR m.creation_time >= $4)
-       AND ($5 == NULL OR m.creation_time <= $5)
-       AND ($6 == NULL OR m.topic = $6)
-       AND ($7 == NULL OR m.destination = $7)
+       AND ($3 == NULL OR m.creation_time >= $3)
+       AND ($4 == NULL OR m.creation_time <= $4)
+       AND ($5 == NULL OR m.topic = $5)
+       AND ($6 == NULL OR m.destination = $6)
        ORDER BY m.mail_id
-       LIMIT $8, $9
+       LIMIT $7
+       OFFSET $8
       ",
       &[
         &props.mail_id,
         &props.request_id,
-        &props.creation_time,
         &props.min_creation_time,
         &props.max_creation_time,
         &props.topic,
         &props.destination,
-        &props.offset,
-        &props.offset,
+        &props.count.unwrap_or(100),
+        &props.offset.unwrap_or(0),
       ],
     ).await?
     .into_iter()

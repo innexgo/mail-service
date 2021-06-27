@@ -11,9 +11,9 @@ use tokio::sync::Mutex;
 mod utils;
 
 // db web stuff
-mod mail_api;
-mod mail_db_types;
-mod mail_handlers;
+mod api;
+mod db_types;
+mod handlers;
 mod mail_service;
 
 static SERVICE_NAME: &str = "mail-service";
@@ -50,13 +50,17 @@ async fn main() -> Result<(), tokio_postgres::Error> {
   // so spawn it off to run on its own.
   tokio::spawn(async move {
     if let Err(e) = connection.await {
-      eprintln!("connection error: {}", e);
+      utils::log(utils::Event {
+        msg: e.to_string(),
+        source: e.source().map(|x| x.to_string()),
+        severity: utils::SeverityKind::Error,
+      })
     }
   });
 
   let db: Db = Arc::new(Mutex::new(client));
 
-  let api = mail_api::api(db);
+  let api = api::api(db);
 
 
   let log = warp::log::custom(|info| {

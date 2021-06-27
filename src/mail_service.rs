@@ -1,4 +1,4 @@
-use super::mail_db_types::*;
+use super::db_types::*;
 use super::utils::current_time_millis;
 use mail_service_api::request;
 use tokio_postgres::row::Row;

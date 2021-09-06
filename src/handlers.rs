@@ -1,3 +1,5 @@
+use super::ses_aws;
+use super::Config;
 use super::Db;
 use mail_service_api::request;
 use mail_service_api::response;
@@ -32,14 +34,31 @@ pub fn fill_mail(
 
 pub async fn mail_new(
   db: Db,
+  config: Config,
   props: request::MailNewProps,
 ) -> Result<response::Mail, response::MailError> {
   let con = &mut *db.lock().await;
 
-  println!("Topic: {}", &props.topic);
-  println!("To: {}", &props.destination);
-  println!("Subject: {}", &props.title);
-  println!("Body:\n {}", &props.content);
+  if let Some(client) = config.client {
+    utils::log(utils::Event {
+      msg: format!("using AWS SESv2 to send email to {}", props.destination),
+      source: None,
+      severity: utils::SeverityKind::Info,
+    });
+    ses_aws::send_email(
+      client,
+      &config.from_address,
+      &props.destination,
+      &props.title,
+      &props.content,
+    )
+    .await;
+  } else {
+    println!("Topic: {}", &props.topic);
+    println!("To: {}", &props.destination);
+    println!("Subject: {}", &props.title);
+    println!("Body:\n {}", &props.content);
+  }
 
   let mail = mail_service::add(con, props)
     .await
@@ -50,6 +69,7 @@ pub async fn mail_new(
 
 pub async fn mail_view(
   db: Db,
+  _config: Config,
   props: request::MailViewProps,
 ) -> Result<Vec<response::Mail>, response::MailError> {
   let con = &mut *db.lock().await;

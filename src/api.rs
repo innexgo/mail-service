@@ -1,26 +1,30 @@
 use super::handlers;
 use super::utils;
 use super::Db;
+use super::Config;
 use super::SERVICE_NAME;
+use mail_service_api::response;
 use mail_service_api::response::MailError;
-use std::collections::HashMap;
 use std::convert::Infallible;
 use warp::http::StatusCode;
 use warp::Filter;
 
 /// The function that will show all ones to call
-pub fn api(db: Db) -> impl Filter<Extract = impl warp::Reply, Error = Infallible> + Clone {
+pub fn api(db: Db, config: Config) -> impl Filter<Extract = impl warp::Reply, Error = Infallible> + Clone {
   api_info()
-    .or(mail_new(db.clone()))
-    .or(mail_view(db.clone()))
+    .or(mail_new(db.clone(), config.clone()))
+    .or(mail_view(db.clone(), config.clone()))
     .recover(handle_rejection)
 }
 
 fn api_info() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-  let mut info = HashMap::new();
-  info.insert("version", "0.1");
-  info.insert("name", SERVICE_NAME);
-  warp::path!("info").map(move || warp::reply::json(&info))
+  let info = response::Info {
+    service: SERVICE_NAME.to_owned(),
+    version_major: 1,
+    version_minor: 0,
+    version_rev: 0,
+  };
+  warp::path!("public" / "info").map(move || warp::reply::json(&info))
 }
 
 // lets you pass in an arbitrary parameter
@@ -28,19 +32,21 @@ fn with<T: Clone + Send>(t: T) -> impl Filter<Extract = (T,), Error = Infallible
   warp::any().map(move || t.clone())
 }
 
-fn mail_new(db: Db) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+fn mail_new(db: Db, config: Config) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
   warp::path!("mail" / "new")
     .and(with(db))
+    .and(with(config))
     .and(warp::body::json())
-    .and_then(move |db, props| async { handlers::mail_new(db, props).await.map_err(mail_error) })
+    .and_then(move |db, config, props| async { handlers::mail_new(db, config, props).await.map_err(mail_error) })
     .map(|x| warp::reply::json(&Some(x).ok_or(())))
 }
 
-fn mail_view(db: Db) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+fn mail_view(db: Db, config: Config) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
   warp::path!("mail" / "view")
     .and(with(db))
+    .and(with(config))
     .and(warp::body::json())
-    .and_then(move |db, props| async { handlers::mail_view(db, props).await.map_err(mail_error) })
+    .and_then(move |db, config, props| async { handlers::mail_view(db, config, props).await.map_err(mail_error) })
     .map(|x| warp::reply::json(&Some(x).ok_or(())))
 }
 

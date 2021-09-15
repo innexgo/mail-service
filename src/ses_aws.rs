@@ -1,14 +1,17 @@
+use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_sesv2::model::{Body, Content, Destination, EmailContent, Message};
 use aws_sdk_sesv2::{Client, Config};
+use aws_types::region::Region;
 use std::error::Error;
-use aws_types::region::ProvideRegion;
 
 use super::utils;
 
-pub fn build_client() -> Client {
-  let region = aws_types::region::default_provider().region();
-  let conf = Config::builder().region(region).build();
-  Client::from_conf(conf)
+pub async fn build_client() -> Client {
+  let region_provider = RegionProviderChain::default_provider().or_else(Region::new("us-west-2"));
+
+  let shared_config = aws_config::from_env().region(region_provider).load().await;
+
+  Client::from_conf(Config::from(&shared_config))
 }
 
 pub async fn send_email(
@@ -20,7 +23,10 @@ pub async fn send_email(
 ) {
   let dest = Destination::builder().to_addresses(to_address).build();
   let subject_content = Content::builder().data(subject).charset("UTF-8").build();
-  let body_content = Content::builder().data(html_content).charset("UTF-8").build();
+  let body_content = Content::builder()
+    .data(html_content)
+    .charset("UTF-8")
+    .build();
   let body = Body::builder().html(body_content).build();
 
   let msg = Message::builder()

@@ -39,9 +39,8 @@ pub type Db = Arc<Mutex<Client>>;
 #[derive(Clone)]
 pub struct Config {
   pub from_address: String,
-  pub client: Option<aws_sdk_sesv2::Client>
+  pub client: Option<aws_sdk_sesv2::Client>,
 }
-
 
 #[tokio::main]
 async fn main() -> Result<(), tokio_postgres::Error> {
@@ -51,7 +50,6 @@ async fn main() -> Result<(), tokio_postgres::Error> {
     from_address,
     dryrun,
   } = Opts::parse();
-
 
   // create postgres connection
   let (client, connection) = loop {
@@ -82,12 +80,15 @@ async fn main() -> Result<(), tokio_postgres::Error> {
 
   // resolve aws region
 
-
   let db: Db = Arc::new(Mutex::new(client));
 
   let config = Config {
-      from_address,
-      client: if dryrun { None } else { Some(ses_aws::build_client()) }
+    from_address,
+    client: if dryrun {
+      None
+    } else {
+      Some(ses_aws::build_client().await)
+    },
   };
 
   let api = api::api(db, config);

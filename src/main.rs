@@ -1,4 +1,4 @@
-use clap::Clap;
+use clap::Parser;
 use std::error::Error;
 use std::sync::Arc;
 use warp::Filter;
@@ -17,7 +17,7 @@ mod ses_aws;
 
 static SERVICE_NAME: &str = "mail-service";
 
-#[derive(Clap, Clone)]
+#[derive(Parser, Clone)]
 #[clap(version = "0.1")]
 struct Opts {
   /// URL of postgres db to connect to

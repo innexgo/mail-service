@@ -33,8 +33,8 @@ pub fn fill_mail(
 }
 
 pub async fn mail_new(
-  db: Db,
   config: Config,
+  db: Db,
   props: request::MailNewProps,
 ) -> Result<response::Mail, response::MailError> {
   let con = &mut *db.lock().await;
@@ -68,8 +68,8 @@ pub async fn mail_new(
 }
 
 pub async fn mail_view(
-  db: Db,
   _config: Config,
+  db: Db,
   props: request::MailViewProps,
 ) -> Result<Vec<response::Mail>, response::MailError> {
   let con = &mut *db.lock().await;

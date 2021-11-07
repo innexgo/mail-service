@@ -3,52 +3,83 @@ use super::utils;
 use super::Db;
 use super::Config;
 use super::SERVICE_NAME;
-use mail_service_api::response;
 use mail_service_api::response::MailError;
 use std::convert::Infallible;
+use std::collections::HashMap;
 use warp::http::StatusCode;
 use warp::Filter;
+use std::future::Future;
+
+/// Helper to combine the multiple filters together with Filter::or, possibly boxing the types in
+/// the process. This greatly helps the build times for `ipfs-http`.
+/// https://github.com/seanmonstar/warp/issues/507#issuecomment-615974062
+macro_rules! combine {
+  ($x:expr, $($y:expr),+) => {{
+      let filter = ($x).boxed();
+      $( let filter = (filter.or($y)).boxed(); )+
+      filter
+  }}
+}
+
+
 
 /// The function that will show all ones to call
 pub fn api(db: Db, config: Config) -> impl Filter<Extract = impl warp::Reply, Error = Infallible> + Clone {
   api_info()
-    .or(mail_new(db.clone(), config.clone()))
-    .or(mail_view(db.clone(), config.clone()))
+    .or(combine!(
+      adapter(
+        config.clone(),
+        db.clone(),
+        warp::path!("mail_new"),
+        handlers::mail_new,
+      ),
+      adapter(
+        config.clone(),
+        db.clone(),
+        warp::path!("mail_view"),
+        handlers::mail_view,
+      )
+    ))
     .recover(handle_rejection)
 }
 
 fn api_info() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-  let info = response::Info {
-    service: SERVICE_NAME.to_owned(),
-    version_major: 1,
-    version_minor: 0,
-    version_rev: 0,
-  };
+  let mut info = HashMap::new();
+  info.insert("version", "0.1");
+  info.insert("name", SERVICE_NAME);
   warp::path!("public" / "info").map(move || warp::reply::json(&info))
 }
 
-// lets you pass in an arbitrary parameter
-fn with<T: Clone + Send>(t: T) -> impl Filter<Extract = (T,), Error = Infallible> + Clone {
-  warp::any().map(move || t.clone())
+// this function adapts a handler function to a warp filter
+// it accepts an initial path filter
+fn adapter<PropsType, ResponseType, F>(
+  config: Config,
+  db: Db,
+  filter: impl Filter<Extract = (), Error = warp::Rejection> + Clone,
+  handler: fn(Config, Db, PropsType) -> F,
+) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone
+where
+  F: Future<Output = Result<ResponseType, MailError>> + Send,
+  PropsType: Send + serde::de::DeserializeOwned,
+  ResponseType: Send + serde::ser::Serialize,
+{
+  // lets you pass in an arbitrary parameter
+  fn with<T: Clone + Send>(t: T) -> impl Filter<Extract = (T,), Error = Infallible> + Clone {
+    warp::any().map(move || t.clone())
+  }
+
+  filter
+    .and(with(config))
+    .and(with(db))
+    .and(warp::body::json())
+    .and_then(async move |config, db, props| {
+      handler(config, db, props)
+        .await
+        .map_err(mail_error)
+    })
+    .map(|x| warp::reply::json(&Ok::<ResponseType, ()>(x)))
 }
 
-fn mail_new(db: Db, config: Config) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-  warp::path!("mail" / "new")
-    .and(with(db))
-    .and(with(config))
-    .and(warp::body::json())
-    .and_then(move |db, config, props| async { handlers::mail_new(db, config, props).await.map_err(mail_error) })
-    .map(|x| warp::reply::json(&Some(x).ok_or(())))
-}
-
-fn mail_view(db: Db, config: Config) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-  warp::path!("mail" / "view")
-    .and(with(db))
-    .and(with(config))
-    .and(warp::body::json())
-    .and_then(move |db, config, props| async { handlers::mail_view(db, config, props).await.map_err(mail_error) })
-    .map(|x| warp::reply::json(&Some(x).ok_or(())))
-}
 
 // This function receives a `Rejection` and tries to return a custom
 // value, otherwise simply passes the rejection along.

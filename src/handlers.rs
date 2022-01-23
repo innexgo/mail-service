@@ -73,6 +73,7 @@ pub async fn mail_view(
   props: request::MailViewProps,
 ) -> Result<Vec<response::Mail>, response::MailError> {
   let con = &mut *db.lock().await;
+
   // get mails
   let mails = mail_service::query(con, props)
     .await

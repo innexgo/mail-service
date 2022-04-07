@@ -7,12 +7,12 @@ edition = "2021"
 
 [dependencies]
 warp = "0.3.2"
-clap = { version = "3.1.6", features = ["derive"] }
+clap = { version = "3.1.8", features = ["derive"] }
 tokio = { version = "1.17.0", features = ["full"] }
 serde = { version = "1.0.136", features = ["derive"] }
 mail-service-api = { version = "*", git = "https://github.com/innexgo/mail-service-api" }
 serde_json = "1.0.79"
 tokio-postgres = "0.7.5"
-aws-sdk-sesv2 = "0.8.0"
-aws-types = "0.8.0"
-aws-config = "0.8.0"
+aws-sdk-sesv2 = "0.9.0"
+aws-types = "0.9.0"
+aws-config = "0.9.0"

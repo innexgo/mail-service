@@ -25,7 +25,7 @@ macro_rules! combine {
 pub fn api(
     db: Db,
     config: Config,
-) -> impl Filter<Extract = impl warp::Reply, Error = Infallible> + Clone {
+) -> impl Filter<Extract = (impl warp::Reply,), Error = Infallible> + Clone {
     api_info()
         .or(combine!(
             adapter(
@@ -44,7 +44,7 @@ pub fn api(
         .recover(handle_rejection)
 }
 
-fn api_info() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+fn api_info() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     let mut info = HashMap::new();
     info.insert("version", "0.1");
     info.insert("name", SERVICE_NAME);

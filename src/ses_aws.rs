@@ -1,6 +1,6 @@
 use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_sesv2::model::{Body, Content, Destination, EmailContent, Message};
-use aws_sdk_sesv2::{Client, Config};
+use aws_sdk_sesv2::Client;
 use aws_types::region::Region;
 use std::error::Error;
 
@@ -11,7 +11,7 @@ pub async fn build_client() -> Client {
 
   let shared_config = aws_config::from_env().region(region_provider).load().await;
 
-  Client::from_conf(Config::from(&shared_config))
+  Client::new(&shared_config)
 }
 
 pub async fn send_email(

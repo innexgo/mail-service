@@ -6,15 +6,15 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-warp = "0.3.2"
-clap = { version = "3.1.18", features = ["derive"] }
-tokio = { version = "1.19.2", features = ["full"] }
-serde = { version = "1.0.137", features = ["derive"] }
+warp = "0.3.3"
+clap = { version = "4.0.27", features = ["derive"] }
+tokio = { version = "1.22.0", features = ["full"] }
+serde = { version = "1.0.147", features = ["derive"] }
 mail-service-api = { version = "*", git = "https://github.com/innexgo/mail-service-api" }
-serde_json = "1.0.81"
-tokio-postgres = "0.7.6"
-aws-sdk-sesv2 = "0.12.0"
-aws-types = "0.12.0"
-aws-config = "0.12.0"
+serde_json = "1.0.89"
+tokio-postgres = "0.7.7"
+aws-sdk-sesv2 = "0.21.0"
+aws-types = "0.51.0"
+aws-config = "0.51.0"
 
 
